@@ -318,7 +318,7 @@ def _exercise(
         {
             "PATH": f"{bin_dir}:{env['PATH']}",
             "PYTHONPATH": str(work / "sdk"),
-            "ANTHROPIC_API_KEY": key,
+            "AI_GATEWAY_API_KEY": key,
             "CENSUS_DIR": str(census),
             "GH_TOKEN": "dummy",
             "GH_REPO": "thrillmade/thrill-skills",
@@ -410,7 +410,7 @@ def test_a_class_named_after_the_secret_is_reported_as_unrecognised_not_echoed(t
 def test_an_operator_can_work_a_failure_from_the_log_line(tmp_path):
     out = _exercise(tmp_path, "auth")
     assert (
-        "::error::census panel needs attention: state=failed reason=the API key was refused (HTTP 401) "
+        "::error::census panel needs attention: state=failed reason=the gateway key was refused (HTTP 401) "
         "code=authentication stage=call http=401 class=AuthenticationError."
     ) in out["health"].stdout
     assert "withheld on purpose" in out["health"].stdout
@@ -513,7 +513,7 @@ def test_a_planted_reason_is_never_read(tmp_path):
     record = {"state": "failed", "reason_code": "authentication", "reason": TEXT, "stage": "call", "http_status": 401}
     out = _planted(tmp_path, record)
     assert out["health"].returncode == 1
-    assert "the API key was refused (HTTP 401)" in out["health"].stdout
+    assert "the gateway key was refused (HTTP 401)" in out["health"].stdout
     _assert_no_plants(out["everything"], "reason")
 
 
