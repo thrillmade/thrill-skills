@@ -136,7 +136,7 @@ def _run(tmp_path: Path, mode: str, script: Path = PANEL) -> tuple[subprocess.Co
     env = {
         "PATH": os.environ["PATH"],
         "PYTHONPATH": str(tmp_path / "sdk"),
-        "ANTHROPIC_API_KEY": FAKE_KEY,
+        "AI_GATEWAY_API_KEY": FAKE_KEY,
         "CENSUS_DIR": str(census),
         "LEAK_MODE": mode,
         "LEAK_TEXT": TEXT,
@@ -219,7 +219,7 @@ def test_other_printed_text_is_fixed_or_class_only(tmp_path):
     proc = subprocess.run(
         [sys.executable, str(PANEL)],
         cwd=REPO_ROOT,
-        env={"PATH": os.environ["PATH"], "ANTHROPIC_API_KEY": FAKE_KEY, "CENSUS_DIR": str(census)},
+        env={"PATH": os.environ["PATH"], "AI_GATEWAY_API_KEY": FAKE_KEY, "CENSUS_DIR": str(census)},
         capture_output=True,
         text=True,
         timeout=60,
