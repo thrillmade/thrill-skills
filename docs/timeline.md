@@ -13,10 +13,10 @@ PR's CI run, so this file is always coherent with current `main`.
 ---
 
 
-## 2026-11 (26 decisions)
+## 2026-11 (27 decisions)
 
-- **2026-11-13** — Census: catalog-only skills are graced, the digest says what the model review did, a failure that needs a person fails the run, and nothing the SDK emits reaches the public log (#191) *(fix/census-panel-status-191)* — [decisions-branches/fix__census-panel-status-191.md](decisions-branches/fix__census-panel-status-191.md)
-- *... 24 more decisions ...*
+- **2026-11-16** — Census panel goes through Vercel AI Gateway: one key (AI_GATEWAY_API_KEY), a fixed address, the old Anthropic key ignored *(feat/census-panel-via-gateway)* — [decisions-branches/feat__census-panel-via-gateway.md](decisions-branches/feat__census-panel-via-gateway.md)
+- *... 25 more decisions ...*
 - **2026-11-02** — Design skills: thrill-design house principles, motion-continuity, ios-safari-surfaces; designing-elite-ui and orchestrating-elite-agent-qa amended *(feat/design-skills-nov)* — [decisions-branches/feat__design-skills-nov.md](decisions-branches/feat__design-skills-nov.md)
 
 ## 2026-10
