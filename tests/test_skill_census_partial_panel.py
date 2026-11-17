@@ -92,7 +92,7 @@ class FakeBaseFailure(BaseException):
 class Anthropic:
     def __init__(self, *args, **kwargs):
         mode = os.environ.get("FAKE_MODE", "")
-        text = "Error code: 4xx - {'message': 'invalid x-api-key', 'request_id': '" + os.environ["FAKE_REQUEST_ID"] + "', 'key': '" + os.environ["ANTHROPIC_API_KEY"] + "'}"
+        text = "Error code: 4xx - {'message': 'invalid x-api-key', 'request_id': '" + os.environ["FAKE_REQUEST_ID"] + "', 'key': '" + kwargs['api_key'] + "'}"
         if mode == "custombase":
             raise FakeBaseFailure(text)
         if mode == "sysexit":
@@ -175,7 +175,7 @@ def _run_panel_then_file(complete: bool = True, mode: str = "", panel_enabled: b
             {
                 "PATH": f"{bin_dir}:{env['PATH']}",
                 "PYTHONPATH": str(sdk_dir),
-                "ANTHROPIC_API_KEY": key,
+                "AI_GATEWAY_API_KEY": key,
                 "CENSUS_DIR": str(census_dir),
                 "GH_CALL_LOG": str(call_log),
                 "GH_TOKEN": "dummy",
@@ -279,7 +279,7 @@ def test_authentication_failure_is_named_in_the_digest_and_fails_the_run():
     assert out["status"] == {
         "state": "failed",
         "reason_code": "authentication",
-        "reason": "the API key was refused (HTTP 401)",
+        "reason": "the gateway key was refused (HTTP 401)",
         "stage": "client",
         "exc_class": "AuthenticationError",
         "background_error_class": None,
@@ -289,15 +289,15 @@ def test_authentication_failure_is_named_in_the_digest_and_fails_the_run():
         "keeps": 0,
     }
     assert _panel_line(out) == (
-        "> **Panel did not run this cycle:** the API key was refused (HTTP 401). "
+        "> **Panel did not run this cycle:** the gateway key was refused (HTTP 401). "
         "This digest carries no verdicts."
     )
-    assert "panel=failed:authentication did not run: the API key was refused (HTTP 401)." in out["summary"]
+    assert "panel=failed:authentication did not run: the gateway key was refused (HTTP 401)." in out["summary"]
     # The digest filed first; then Panel health fails the run.
     assert [c["title"] for c in out["calls"]] == ["census 2026-W47 digest"]
     health = out["health"]
     assert health.returncode == 1, health.stdout + health.stderr
-    assert "::error::census panel needs attention: state=failed reason=the API key was refused (HTTP 401) code=authentication stage=client http=401 class=AuthenticationError." in health.stdout
+    assert "::error::census panel needs attention: state=failed reason=the gateway key was refused (HTTP 401) code=authentication stage=client http=401 class=AuthenticationError." in health.stdout
 
 
 def test_nothing_raised_prints_its_text_even_when_it_is_not_an_exception():
@@ -359,9 +359,9 @@ def test_timeout_stays_green_and_is_named():
 def test_no_key_is_a_deliberate_mode_and_stays_green():
     out = _run_panel_then_file(panel_enabled=False)
     assert _panel_line(out) == (
-        "> **Panel:** off: no API key is visible to this repository, so this digest carries no verdicts."
+        "> **Panel:** off: no gateway key is visible to this repository, so this digest carries no verdicts."
     )
-    assert "panel=off off: no API key is visible to this repository." in out["summary"]
+    assert "panel=off off: no gateway key is visible to this repository." in out["summary"]
     # The step is skipped in the workflow when the panel is off; run here to
     # show it would not fail on its own.
     assert out["filing"].returncode == 0, out["filing"].stderr
@@ -383,7 +383,7 @@ def test_a_blank_key_is_a_misconfiguration_that_fails_the_run():
         assert out["health"].returncode == 1, repr(key)
         assert out["panel"].stderr == "", repr(key)
         assert _panel_line(out) == (
-            "> **Panel did not run this cycle:** the API key is set but blank. "
+            "> **Panel did not run this cycle:** the gateway key is set but blank. "
             "This digest carries no verdicts."
         ), repr(key)
 

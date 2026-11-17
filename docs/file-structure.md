@@ -106,6 +106,7 @@ thrill-skills
 │   ├── test_skill_census_catalog_names.py
 │   ├── test_skill_census_digest_closure.py
 │   ├── test_skill_census_failure_alarm.py
+│   ├── test_skill_census_gateway.py
 │   ├── test_skill_census_gh_list_failure.py
 │   ├── test_skill_census_grace.py
 │   ├── test_skill_census_lock_source.py

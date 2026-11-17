@@ -13,7 +13,7 @@ it), then issues a verdict. Only the JSON verdicts are trusted from the model;
 this script re-validates the whole payload in Python before writing it.
 
 Inputs (env):
-  ANTHROPIC_API_KEY  If unset/empty, the panel is intentionally OFF ("Mode B"):
+  AI_GATEWAY_API_KEY If unset/empty, the panel is intentionally OFF ("Mode B"):
                      print a warning, write panel_status.json (state "off"),
                      exit 0. The workflow's always-on `digest.md` from Mode A
                      is the cycle deliverable. A key that is set but blank
@@ -75,7 +75,7 @@ import and a record with no exception text remain as a second layer: defence
 in depth, not the guarantee.
 
 Exit codes:
-  0  Success, Mode B (no API key), a partial census (census.json
+  0  Success, Mode B (no gateway key), a partial census (census.json
      `coverage.complete` is false: no verdicts, state held_back), OR a handled
      API/validation failure (state failed). Every API/model problem is exit 0
      HERE: the run is failed, when it should be, by the workflow's "Panel
@@ -188,8 +188,12 @@ Anthropic = None  # type: ignore[assignment]
 
 # --- Constants -------------------------------------------------------------
 
-MODEL = "claude-sonnet-5"
+MODEL = "anthropic/claude-sonnet-5"
 MAX_TOKENS = 8192
+# The gateway's Anthropic Messages endpoint. A constant on purpose: it is never
+# read from the environment, an input or a file, so nothing the job holds can
+# change where the key is sent.
+GATEWAY_BASE_URL = "https://ai-gateway.vercel.sh"
 CLIENT_TIMEOUT = 120.0  # seconds; also suppresses the SDK large-max_tokens guard
 
 RUBRIC_PATH = "skills/curating-a-skill-catalog/SKILL.md"  # cwd-relative (RULING 3)
@@ -422,18 +426,23 @@ def classify_failure(exc: BaseException) -> tuple[str, str, int | None]:
     if isinstance(exc, (PanelValidationError, PanelNoText)):
         return "invalid_answer", "the model's answer could not be used", None
     if http == 401:
-        return "authentication", "the API key was refused (HTTP 401)", 401
+        return "authentication", "the gateway key was refused (HTTP 401)", 401
     if http == 403:
-        return "permission", "the API key lacks permission for this request (HTTP 403)", 403
+        return "permission", "the gateway key lacks permission for this request (HTTP 403)", 403
     if http == 404:
         return "model_unavailable", "the model was not found or is not available to this key (HTTP 404)", 404
+    if http == 402:
+        # Vercel's budgets page: once spend reaches a budget, the gateway
+        # rejects further requests for that scope with HTTP 402 (error type
+        # quota_for_entity_exceeded). Only the status is read, never the text.
+        # A person raises the limit.
+        return "budget_exceeded", "a gateway spending limit was reached (HTTP 402)", 402
     if http == 429:
         return "rate_limited", "the API rate limit was hit (HTTP 429)", 429
     if http is not None and http >= 500:
         return "service_error", f"the API service failed (HTTP {http})", http
     if http is not None and 400 <= http < 500:
-        # Any 4xx not named above, 400 included (an exhausted credit balance
-        # arrives as one): only a person can fix it.
+        # Any 4xx not named above, 400 included: only a person can fix it.
         return "client_error", f"the API refused the request (HTTP {http})", http
     if name in TIMEOUT_CLASS_NAMES:
         return "timeout", "the API call timed out", http
@@ -738,10 +747,24 @@ def call_claude(system_prompt: str, user_message: str) -> str:
     _STAGE = "sdk_import"
     client_class = _anthropic_client_class()
     _STAGE = "client"
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        raise RuntimeError("ANTHROPIC_API_KEY not set")
+    gateway_key = os.environ.get("AI_GATEWAY_API_KEY", "")
+    if not gateway_key.strip():
+        raise RuntimeError("AI_GATEWAY_API_KEY not set")
 
-    client = client_class(timeout=CLIENT_TIMEOUT)  # SDK default max_retries (no extra retries)
+    # The SDK falls back to its own environment (a base URL, an API key, an
+    # auth token, custom headers, a credentials profile) for anything not passed.
+    # The gateway prefers an Authorization header over x-api-key, so a stray
+    # ANTHROPIC_AUTH_TOKEN would change which credential is sent. Drop every
+    # ANTHROPIC_* variable before the client exists, so no SDK version has
+    # anything to fall back to; the two values that matter are passed explicitly.
+    for name in [n for n in os.environ if n.upper().startswith("ANTHROPIC_")]:
+        del os.environ[name]
+
+    client = client_class(
+        api_key=gateway_key,
+        base_url=GATEWAY_BASE_URL,
+        timeout=CLIENT_TIMEOUT,  # SDK default max_retries (no extra retries)
+    )
     _STAGE = "call"
     request = dict(
         model=MODEL,
@@ -1040,25 +1063,25 @@ def _set_stage(stage: str) -> None:
 def _run(argv: list[str] | None = None) -> int:
     # A key that is set but blank (a pasted newline) is a misconfiguration, not
     # the deliberate no-key mode: fail so a person looks.
-    raw_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    raw_key = os.environ.get("AI_GATEWAY_API_KEY", "")
     if raw_key and not raw_key.strip():
-        reason = "the API key is set but blank"
+        reason = "the gateway key is set but blank"
         print(f"::error::census panel did not run: {reason}", file=sys.stderr)
         blank_dir = os.environ.get("CENSUS_DIR", "").strip()
         if blank_dir and os.path.isdir(blank_dir):
             _write_status(blank_dir, "failed", "key_blank", reason)
         return 0
 
-    # RULING 1: no API key => the panel is intentionally OFF (Mode B).
+    # RULING 1: no gateway key => the panel is intentionally OFF (Mode B).
     if not raw_key.strip():
         print(
-            "::warning::ANTHROPIC_API_KEY not set — census panel skipped (Mode B); "
+            "::warning::AI_GATEWAY_API_KEY not set — census panel skipped (Mode B); "
             "no verdicts.",
             file=sys.stderr,
         )
         off_dir = os.environ.get("CENSUS_DIR", "").strip()
         if off_dir and os.path.isdir(off_dir):
-            _write_status(off_dir, "off", "no_key", "no API key is configured")
+            _write_status(off_dir, "off", "no_key", "no gateway key is configured")
         return 0
 
     # Wiring gate: exit 1 is reserved for a missing/corrupt census.json.

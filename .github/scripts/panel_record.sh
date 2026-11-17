@@ -53,7 +53,7 @@ RC="${2:-0}"
 NONREG=0
 FILE="${DIR}/panel_status.json"
 
-CODES=" no_key partial_census authentication permission model_unavailable client_error rate_limited service_error timeout connection invalid_answer sdk_missing key_blank unexpected script_exit bad_record "
+CODES=" no_key partial_census authentication permission model_unavailable budget_exceeded client_error rate_limited service_error timeout connection invalid_answer sdk_missing key_blank unexpected script_exit bad_record "
 STAGES=" startup sdk_import client call parse write "
 EXC_CLASSES=" \
 BaseException BaseExceptionGroup Exception ExceptionGroup GeneratorExit KeyboardInterrupt SystemExit \
@@ -77,10 +77,11 @@ PanelValidationError PanelSdkMissing PanelNoText "
 
 phrase() {
   case "$1" in
-    no_key) echo "no API key is configured" ;;
+    no_key) echo "no gateway key is configured" ;;
     partial_census) echo "the census is partial" ;;
-    authentication) echo "the API key was refused (HTTP 401)" ;;
-    permission) echo "the API key lacks permission for this request (HTTP 403)" ;;
+    authentication) echo "the gateway key was refused (HTTP 401)" ;;
+    permission) echo "the gateway key lacks permission for this request (HTTP 403)" ;;
+    budget_exceeded) echo "a gateway spending limit was reached (HTTP 402)" ;;
     model_unavailable) echo "the model was not found or is not available to this key (HTTP 404)" ;;
     client_error) echo "the API refused the request" ;;
     rate_limited) echo "the API rate limit was hit (HTTP 429)" ;;
@@ -89,7 +90,7 @@ phrase() {
     connection) echo "the API could not be reached" ;;
     invalid_answer) echo "the model's answer could not be used" ;;
     sdk_missing) echo "the anthropic package is not installed" ;;
-    key_blank) echo "the API key is set but blank" ;;
+    key_blank) echo "the gateway key is set but blank" ;;
     unexpected) echo "an unexpected exception was raised" ;;
     script_exit) echo "the panel script exited with a failure status" ;;
     bad_record) echo "panel_status.json held a value outside the allowed set" ;;

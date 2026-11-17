@@ -8,7 +8,12 @@ name: skill-census
 #     staleness. Emits census.json + digest.md. This is the guaranteed
 #     deliverable — it ships even when the LLM panel is unavailable.
 #
-#   Mode B (when ANTHROPIC_API_KEY is present) — .github/scripts/census_panel.py.
+#   Mode B (when AI_GATEWAY_API_KEY is present) — .github/scripts/census_panel.py.
+#     To turn it on, add the org secret AI_GATEWAY_API_KEY (a Vercel AI Gateway
+#     API key) and extend it to this repository. The panel calls the gateway
+#     at a fixed address, and a spend budget can be set on the key in the
+#     gateway, so the key's own limit caps what the panel can cost. Without
+#     the secret the panel is off and the run stays green.
 #     Reads census.json and produces verdicts.json (gap / placement / revise /
 #     promotion-candidate / demotion-candidate proposals). The panel step is
 #     JUDGMENT; filing those verdicts as issues is the FILING step below —
@@ -84,14 +89,14 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       # Loud fail if the App secrets aren't visible to this repo. Missing
-      # ANTHROPIC_API_KEY does NOT fail — it only degrades to Mode B (digest
+      # AI_GATEWAY_API_KEY does NOT fail — it only degrades to Mode B (digest
       # only), so we emit a warning and flip the panel_enabled output off.
       - name: Guard org secrets + resolve panel mode
         id: guard
         env:
           ORCH_APP_ID: ${{ secrets.THRILLMADE_ORCHESTRATOR_APP_ID }}
           ORCH_PRIVATE_KEY: ${{ secrets.THRILLMADE_ORCHESTRATOR_PRIVATE_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
         run: |
           set -euo pipefail
           SELF_NAME="${GITHUB_REPOSITORY#*/}"
@@ -107,8 +112,8 @@ jobs:
           if [ "$missing" -ne 0 ]; then
             exit 1
           fi
-          if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
-            echo "::warning::ANTHROPIC_API_KEY is empty — degrading to Mode B (deterministic digest only, no LLM panel). Extend the ANTHROPIC_API_KEY org secret to ${SELF_NAME} to enable verdicts."
+          if [ -z "${AI_GATEWAY_API_KEY:-}" ]; then
+            echo "::warning::AI_GATEWAY_API_KEY is empty — degrading to Mode B (deterministic digest only, no LLM panel). Extend the AI_GATEWAY_API_KEY org secret to ${SELF_NAME} to enable verdicts."
             echo "panel_enabled=false" >> "$GITHUB_OUTPUT"
           else
             echo "panel_enabled=true" >> "$GITHUB_OUTPUT"
@@ -213,7 +218,7 @@ jobs:
         if: steps.guard.outputs.panel_enabled == 'true'
         continue-on-error: false
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
           CENSUS_DIR: ${{ runner.temp }}/census
           # Reads the open `census` docket via `gh issue list` in THIS repo
           # (GITHUB_REPOSITORY), under the steward App identity. The App has
@@ -223,7 +228,7 @@ jobs:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
         run: |
           # THE BOUNDARY, AND ITS LIMIT. census_panel.py runs next to a
-          # third-party SDK that holds the API key, and this log is public.
+          # third-party SDK that holds the gateway key, and this log is public.
           # The guarantee is against an honest or buggy dependency: whatever
           # it raises, logs, warns or prints never reaches the log, the job
           # summary, an issue or an uploaded file, and a failure is reported
@@ -352,8 +357,8 @@ jobs:
               PANEL_LINE="> **Panel:** ran: ${P_N} verdict(s), ${P_K} kept."
               PANEL_PLAIN="ran: ${P_N} verdict(s), ${P_K} kept." ;;
             off)
-              PANEL_LINE="> **Panel:** off: no API key is visible to this repository, so this digest carries no verdicts."
-              PANEL_PLAIN="off: no API key is visible to this repository." ;;
+              PANEL_LINE="> **Panel:** off: no gateway key is visible to this repository, so this digest carries no verdicts."
+              PANEL_PLAIN="off: no gateway key is visible to this repository." ;;
             held_back)
               PANEL_LINE="> **Panel:** held back: the census is partial, so there are no verdicts about repositories it did not read."
               PANEL_PLAIN="held back: the census is partial." ;;
@@ -680,7 +685,7 @@ jobs:
           [ "$CLS" != unrecognised ] || CLS="an unrecognised exception class"
           [ "$BG" != unrecognised ] || BG="an unrecognised exception class"
           DETAIL="state=${STATE} reason=${REASON:-none} code=${CODE:-none} stage=${STAGE} http=${HTTP} class=${CLS}${EXS:+ exit=${EXS}}."
-          WITHHELD="The panel's raw output was withheld on purpose (this log is public and the step runs next to the API key). To reproduce, run .github/scripts/census_panel.py locally with ANTHROPIC_API_KEY and CENSUS_DIR set."
+          WITHHELD="The panel's raw output was withheld on purpose (this log is public and the step runs next to the gateway key). To reproduce, run .github/scripts/census_panel.py locally with AI_GATEWAY_API_KEY and CENSUS_DIR set."
           case "$STATE" in
             ran|off|held_back)
               echo "Panel health: ${STATE}."

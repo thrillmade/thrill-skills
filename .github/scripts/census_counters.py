@@ -11,7 +11,7 @@ signal). The *judgment* half — gap/placement/promotion verdicts — is Mode B
 Stdlib ONLY (base64, hashlib, http.client, json, os, re, subprocess, sys,
 urllib, datetime). No pip, so the counters step runs on a bare runner before the panel step
 installs the Anthropic SDK. If the panel step is skipped (no
-ANTHROPIC_API_KEY), this file's `digest.md` still ships as the cycle's
+AI_GATEWAY_API_KEY), this file's `digest.md` still ships as the cycle's
 deliverable. `subprocess` is used narrowly (git plumbing only — `log`/`show`
 against the local checkout, see `_algo_proven_for_lineage`), never to shell
 out to anything network- or input-derived.
